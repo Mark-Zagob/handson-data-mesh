@@ -1,0 +1,250 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      # Enable JMX cho Zookeeper
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: zookeeper
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=zookeeper -Dcom.sun.management.jmxremote.rmi.port=9999"
+    ports:
+      - "2181:2181"
+      - "9999:9999"
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD", "echo", "ruok", "|", "nc", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+      - "9101:9101"  # JMX port
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://192.168.100.50:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      
+      # Enable JMX metrics cho Kafka
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: kafka
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka -Dcom.sun.management.jmxremote.rmi.port=9101"
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.0
+    hostname: schema-registry
+    container_name: schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+      - "9102:9102"  # JMX port cho Schema Registry
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: "http://0.0.0.0:8081"
+      
+      # Enable JMX cho Schema Registry
+      SCHEMA_REGISTRY_JMX_PORT: 9102
+      SCHEMA_REGISTRY_JMX_HOSTNAME: schema-registry
+      SCHEMA_REGISTRY_JMX_OPTS: "-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=schema-registry -Dcom.sun.management.jmxremote.rmi.port=9102"
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ==============================================================================
+  # MONITORING STACK
+  # ==============================================================================
+  
+  # Kafka Exporter
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka-exporter
+    command: 
+      - --kafka.server=kafka:29092
+      - --web.listen-address=:9308
+      - --log.level=info
+    ports:
+      - "9308:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # JMX Exporter cho Kafka
+  jmx-kafka:
+    image: bitnami/jmx-exporter:latest
+    container_name: jmx-kafka
+    ports:
+      - "5556:5556"
+    volumes:
+      - ./monitoring/jmx-kafka.yml:/opt/bitnami/jmx-exporter/config.yml:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # JMX Exporter cho Schema Registry
+  jmx-schema-registry:
+    image: bitnami/jmx-exporter:latest
+    container_name: jmx-schema-registry
+    ports:
+      - "5557:5556"
+    volumes:
+      - ./monitoring/jmx-schema-registry.yml:/opt/bitnami/jmx-exporter/config.yml:ro
+    depends_on:
+      schema-registry:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # JMX Exporter cho Zookeeper
+  jmx-zookeeper:
+    image: bitnami/jmx-exporter:latest
+    container_name: jmx-zookeeper
+    ports:
+      - "5558:5556"
+    volumes:
+      - ./monitoring/jmx-zookeeper.yml:/opt/bitnami/jmx-exporter/config.yml:ro
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Node Exporter - System metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.rootfs=/host'
+    volumes:
+      - '/:/host:ro,rslave'
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/kafka-alerts.yml:/etc/prometheus/kafka-alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    depends_on:
+      - kafka-exporter
+      - jmx-kafka
+      - jmx-schema-registry
+      - jmx-zookeeper
+      - node-exporter
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # AlertManager
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  # Kafka UI
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      # JMX metrics
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9101
+      KAFKA_CLUSTERS_0_METRICS_TYPE: JMX
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    networks:
+      - kafka-network
+
+networks:
+  kafka-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

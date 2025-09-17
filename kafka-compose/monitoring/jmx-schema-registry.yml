@@ -1,0 +1,21 @@
+startDelaySeconds: 30
+hostPort: schema-registry:9102
+jmxUrl: service:jmx:rmi:///jndi/rmi://schema-registry:9102/jmxrmi
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
+rules:
+  # Schema Registry metrics
+  - pattern: io.confluent.kafka.schemaregistry<type=(.+), name=(.+)><>Value
+    name: schema_registry_$1_$2
+  - pattern: io.confluent.kafka.schemaregistry<type=(.+), name=(.+), subject=(.+)><>Value
+    name: schema_registry_$1_$2
+    labels:
+      subject: "$3"
+  # JVM metrics
+  - pattern: 'java.lang<type=(.*)><>(.*):'
+    name: jvm_$1_$2
+  - pattern: 'java.lang<type=(.*), name=(.*)><>(.*):'
+    name: jvm_$1_$3
+    labels:
+      name: "$2"

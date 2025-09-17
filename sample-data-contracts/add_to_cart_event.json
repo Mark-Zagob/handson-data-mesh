@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "namespace": "com.ecommerce.events",
+  "name": "AddToCart",
+  "fields": [
+    { "name": "user_id", "type": "string" },
+    { "name": "product_id", "type": "string" },
+    { "name": "quantity", "type": "int" }
+  ]
+}

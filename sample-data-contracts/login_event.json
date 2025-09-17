@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "namespace": "com.ecommerce.events",
+  "name": "UserLogin",
+  "fields": [
+    { "name": "user_id", "type": "string" },
+    { "name": "login_timestamp", "type": "long", "logicalType": "timestamp-millis" }
+  ]
+}

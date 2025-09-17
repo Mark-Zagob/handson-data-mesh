@@ -1,0 +1,14 @@
+startDelaySeconds: 30
+hostPort: zookeeper:9999
+jmxUrl: service:jmx:rmi:///jndi/rmi://zookeeper:9999/jmxrmi
+ssl: false
+lowercaseOutputName: false
+lowercaseOutputLabelNames: false
+rules:
+  # Zookeeper metrics
+  - pattern: org.apache.ZooKeeperService<name0=(.+)><>(.+)
+    name: zookeeper_$2
+    labels:
+      server: "$1"
+  - pattern: 'java.lang<type=(.*)><>(.*):'
+    name: jvm_$1_$2

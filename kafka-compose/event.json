@@ -1,0 +1,40 @@
+{
+  "proposedSnapshot": {
+    "com.linkedin.metadata.snapshot.DatasetSnapshot": {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:s3,sales.customer_orders,PROD)",
+      "aspects": [
+        {
+          "com.linkedin.schema.SchemaMetadata": {
+            "schemaName": "customer_orders",
+            "fields": [
+              {
+                "fieldPath": "order_id",
+                "nativeDataType": "string",
+                "type": {
+                  "com.linkedin.common.Urn": "urn:li:schemaFieldDataType:string"
+                }
+              },
+              {
+                "fieldPath": "amount",
+                "nativeDataType": "double",
+                "type": {
+                  "com.linkedin.common.Urn": "urn:li:schemaFieldDataType:double"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "com.linkedin.common.Ownership": {
+            "owners": [
+              {
+                "owner": "urn:li:corpuser:sales-team",
+                "type": "DATAOWNER"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
