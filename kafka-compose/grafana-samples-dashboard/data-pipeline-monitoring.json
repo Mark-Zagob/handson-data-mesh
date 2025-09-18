@@ -1,0 +1,89 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Data Pipeline - End-to-End Monitoring", 
+    "tags": ["pipeline", "data-mesh", "e2e"],
+    "refresh": "30s",
+    "templating": {
+      "list": [
+        {
+          "name": "topic",
+          "type": "query",
+          "query": "label_values(kafka_topic_partitions, topic)",
+          "refresh": 1
+        },
+        {
+          "name": "consumer_group", 
+          "type": "query",
+          "query": "label_values(kafka_consumer_lag_sum, group)",
+          "refresh": 1
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Pipeline Throughput - $topic",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(kafka_topic_partition_current_offset{topic=\"$topic\"}[5m])",
+            "legendFormat": "Partition {{partition}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Consumer Lag - $consumer_group",
+        "type": "graph", 
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag{group=\"$consumer_group\"}",
+            "legendFormat": "{{topic}}-{{partition}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Data Flow Health",
+        "type": "heatmap",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(kafka_server_BrokerTopicMetrics_TotalProduceRequestsPerSec[5m]))",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Pipeline SLA Dashboard",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "avg_over_time(kafka_consumer_lag_sum[24h]) > 1000",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 16},
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "group": "Consumer Group",
+                "topic": "Data Product",
+                "Value": "Avg Lag (24h)"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

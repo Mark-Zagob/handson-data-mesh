@@ -1,0 +1,121 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Data Mesh - Platform Overview",
+    "tags": ["data-mesh", "kafka", "overview"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Domain Event Volume (Messages/sec)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (topic) (rate(kafka_topic_partition_current_offset[5m]))",
+            "legendFormat": "{{topic}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "yAxes": [
+          {"label": "Messages/sec", "min": 0}
+        ],
+        "legend": {"show": true, "values": true, "current": true}
+      },
+      {
+        "id": 2,
+        "title": "Active Data Products (Topics)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "kafka_topics",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Schema Registry Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"schema-registry-jmx\"}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
+              {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Consumer Groups by Domain",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "kafka_consumer_group_members",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "renameByName": {
+                "group": "Consumer Group",
+                "Value": "Active Members"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Data Mesh SLA - Message Throughput",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_topic_partition_current_offset[5m]))",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 10000,
+            "unit": "reqps",
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 1000},
+                {"color": "green", "value": 5000}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

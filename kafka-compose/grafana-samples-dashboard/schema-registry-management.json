@@ -1,0 +1,97 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Schema Registry - Data Governance",
+    "tags": ["schema-registry", "governance", "data-mesh"],
+    "refresh": "1m",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Schemas Registered",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "schema_registry_registered_count",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "red", "value": 100}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Schema Evolution Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "increase(schema_registry_registered_count[1h])",
+            "legendFormat": "New Schemas/hour",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Schema Compatibility Violations",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "increase(schema_registry_compatibility_check_errors_total[24h])",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 4},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Top Schemas by Usage",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, schema_registry_schema_serialization_total)",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Schema Registry JVM Memory",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"schema-registry-jmx\"}",
+            "legendFormat": "{{area}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      }
+    ]
+  }
+}

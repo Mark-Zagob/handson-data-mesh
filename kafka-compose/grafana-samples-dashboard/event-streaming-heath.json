@@ -1,0 +1,89 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Event Streaming - Health & Performance",
+    "tags": ["kafka", "health", "performance"],
+    "refresh": "15s",
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Broker Health Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "kafka_brokers",
+            "legendFormat": "Active Brokers",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 8, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Message Lag by Consumer Group",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag_sum",
+            "legendFormat": "{{group}} - {{topic}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0},
+        "alert": {
+          "conditions": [
+            {
+              "query": {"queryType": "", "refId": "A"},
+              "reducer": {"type": "last", "params": []},
+              "evaluator": {"params": [1000], "type": "gt"}
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "5m",
+          "frequency": "10s",
+          "handler": 1,
+          "name": "High Consumer Lag",
+          "noDataState": "no_data"
+        }
+      },
+      {
+        "id": 3,
+        "title": "Partition Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "kafka_topic_partitions",
+            "legendFormat": "{{topic}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 4}
+      },
+      {
+        "id": 4,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(kafka_server_BrokerTopicMetrics_FailedProduceRequestsPerSec[5m])",
+            "legendFormat": "Failed Produce Requests",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(kafka_server_BrokerTopicMetrics_FailedFetchRequestsPerSec[5m])",
+            "legendFormat": "Failed Fetch Requests", 
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+        "yAxes": [
+          {"label": "Errors/sec", "min": 0}
+        ]
+      }
+    ]
+  }
+}

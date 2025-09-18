@@ -1,0 +1,416 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Kafka Cluster - Comprehensive Monitoring",
+    "tags": ["kafka", "monitoring", "cluster"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "cluster",
+          "type": "query",
+          "query": "label_values(kafka_brokers, cluster)",
+          "refresh": 1,
+          "includeAll": false,
+          "multi": false
+        },
+        {
+          "name": "topic",
+          "type": "query", 
+          "query": "label_values(kafka_topic_partitions, topic)",
+          "refresh": 1,
+          "includeAll": true,
+          "multi": true
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "🟢 Cluster Status",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "kafka_brokers",
+            "legendFormat": "Active Brokers",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "green", "value": 2}
+              ]
+            },
+            "unit": "short",
+            "min": 0
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "📊 Total Topics",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "kafka_topics",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "🔥 Messages/sec (All Topics)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_topic_partition_current_offset[5m]))",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1000},
+                {"color": "red", "value": 10000}
+              ]
+            },
+            "unit": "reqps",
+            "decimals": 1
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "⚠️ Consumer Groups with Lag",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(kafka_consumer_lag_sum > 100)",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 3}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "💾 Total Partitions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(kafka_topic_partitions)",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "🌡️ Broker Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "up{job=\"kafka-exporter\"}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"options": {"0": {"text": "DOWN", "color": "red"}}, "type": "value"},
+              {"options": {"1": {"text": "UP", "color": "green"}}, "type": "value"}
+            ]
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "📈 Message Throughput by Topic",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_topic_partition_current_offset{topic=~\"$topic\"}[5m])) by (topic)",
+            "legendFormat": "{{topic}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "yAxes": [
+          {"label": "Messages/sec", "min": 0}
+        ],
+        "legend": {"show": true, "values": true, "current": true, "max": true},
+        "tooltip": {"shared": true, "sort": 2}
+      },
+      {
+        "id": 8,
+        "title": "🚨 Consumer Lag by Group",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag_sum",
+            "legendFormat": "{{group}} - {{topic}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "yAxes": [
+          {"label": "Lag (messages)", "min": 0}
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "query": {"queryType": "", "refId": "A"},
+              "reducer": {"type": "max", "params": []},
+              "evaluator": {"params": [1000], "type": "gt"}
+            }
+          ],
+          "executionErrorState": "alerting",
+          "for": "2m",
+          "frequency": "30s",
+          "handler": 1,
+          "name": "High Consumer Lag Alert",
+          "noDataState": "no_data"
+        },
+        "thresholds": [
+          {"value": 500, "colorMode": "critical", "op": "gt", "fill": true, "line": true}
+        ]
+      },
+      {
+        "id": 9,
+        "title": "💿 Broker Disk Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kafka_log_size_bytes / (1024*1024*1024)",
+            "legendFormat": "Broker {{instance}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 0, "y": 12},
+        "yAxes": [
+          {"label": "Disk Usage (GB)", "min": 0}
+        ]
+      },
+      {
+        "id": 10,
+        "title": "🔄 Topic Partition Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "kafka_topic_partitions{topic=~\"$topic\"}",
+            "legendFormat": "{{topic}}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 8, "y": 12},
+        "options": {
+          "pieType": "pie",
+          "tooltip": {"mode": "single"},
+          "legend": {"displayMode": "table", "placement": "right"}
+        }
+      },
+      {
+        "id": 11,
+        "title": "⚡ JVM Memory Usage (Kafka)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "jvm_memory_used_bytes{job=\"jmx-kafka\",area=\"heap\"} / (1024*1024)",
+            "legendFormat": "Heap Used (MB)",
+            "refId": "A"
+          },
+          {
+            "expr": "jvm_memory_max_bytes{job=\"jmx-kafka\",area=\"heap\"} / (1024*1024)",
+            "legendFormat": "Heap Max (MB)",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 8, "x": 16, "y": 12},
+        "yAxes": [
+          {"label": "Memory (MB)", "min": 0}
+        ]
+      },
+      {
+        "id": 12,
+        "title": "📊 Top Topics by Message Volume",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(kafka_topic_partition_current_offset[5m])) by (topic))",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "renameByName": {
+                "topic": "Topic Name",
+                "Value": "Messages/sec"
+              }
+            }
+          }
+        ],
+        "fieldConfig": {
+          "overrides": [
+            {
+              "matcher": {"id": "byName", "options": "Messages/sec"},
+              "properties": [
+                {"id": "unit", "value": "reqps"},
+                {"id": "decimals", "value": 2}
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": 13,
+        "title": "⏱️ Consumer Group Details",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "kafka_consumer_group_members",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "transformations": [
+          {
+            "id": "organize", 
+            "options": {
+              "excludeByName": {"Time": true, "__name__": true},
+              "renameByName": {
+                "group": "Consumer Group",
+                "Value": "Active Members"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "🔥 Request Rate (Produce/Fetch)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_server_BrokerTopicMetrics_TotalProduceRequestsPerSec[5m]))",
+            "legendFormat": "Produce Requests/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(kafka_server_BrokerTopicMetrics_TotalFetchRequestsPerSec[5m]))",
+            "legendFormat": "Fetch Requests/sec", 
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+        "yAxes": [
+          {"label": "Requests/sec", "min": 0}
+        ]
+      },
+      {
+        "id": 15,
+        "title": "❌ Error Rates",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_server_BrokerTopicMetrics_FailedProduceRequestsPerSec[5m]))",
+            "legendFormat": "Failed Produce/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(kafka_server_BrokerTopicMetrics_FailedFetchRequestsPerSec[5m]))",
+            "legendFormat": "Failed Fetch/sec",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+        "yAxes": [
+          {"label": "Errors/sec", "min": 0}
+        ],
+        "thresholds": [
+          {"value": 1, "colorMode": "critical", "op": "gt", "fill": true}
+        ]
+      },
+      {
+        "id": 16,
+        "title": "🌊 Network I/O",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_server_BrokerTopicMetrics_BytesInPerSec[5m])) / (1024*1024)",
+            "legendFormat": "Bytes In (MB/s)",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(kafka_server_BrokerTopicMetrics_BytesOutPerSec[5m])) / (1024*1024)",
+            "legendFormat": "Bytes Out (MB/s)",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 36},
+        "yAxes": [
+          {"label": "Network I/O (MB/s)", "min": 0}
+        ]
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "resets(kafka_brokers[5m]) > 0",
+          "iconColor": "red",
+          "tags": ["deployment", "restart"]
+        }
+      ]
+    }
+  }
+}
